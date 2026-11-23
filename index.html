@@ -57,6 +57,21 @@ h2 .num{font-weight:500}
 .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .goal{background:var(--card);border-radius:18px;padding:18px;margin-bottom:8px}
 .goal .bar{height:6px;border-radius:3px;margin-top:12px}.goal .bar i{background:var(--save)}
+.sec{margin-top:22px}
+.sec summary{list-style:none;display:flex;align-items:center;gap:10px;padding:10px 4px;cursor:pointer;min-height:44px;font-size:15px;font-weight:650}
+.sec summary::-webkit-details-marker{display:none}
+.sec .st{flex:1}.sec .st small{color:var(--mute);font-weight:500;font-size:13px;margin-left:4px}
+.sec summary .num{font-weight:600;color:var(--mute);font-size:14px}
+.chev{width:8px;height:8px;border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);transform:rotate(-45deg);transition:transform .2s;margin:0 4px 0 2px;flex:none}
+.sec[open] .chev{transform:rotate(45deg)}
+.rows.compact .row{padding:6px 14px;min-height:44px;font-size:14.5px;line-height:1.3;gap:10px}
+.rows.compact .row .t small{font-size:12px;line-height:1.35}
+.rows.compact .row .num{font-size:14.5px}
+.sec .btns{margin-top:8px}
+.deps{margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
+.deps summary,.deps .dh{font-size:13px;font-weight:600;color:var(--mute);padding:8px 0;cursor:pointer}
+.dep{display:flex;align-items:center;gap:10px;min-height:40px;font-size:15px}.dep .t{flex:1;color:var(--mute)}
+.dep .x{width:36px;height:36px;flex:none;border:0;border-radius:50%;background:none;color:var(--mute);font-size:20px;cursor:pointer}.dep button.x:active{background:var(--zone)}
 .goal p{margin:10px 0 0;color:var(--mute);font-size:14px}
 .fab{position:fixed;right:max(20px,calc(50vw - 300px));bottom:calc(max(14px,env(safe-area-inset-bottom)) + 66px);width:56px;height:56px;border-radius:50%;background:var(--blue);color:#fff;border:0;font-size:28px;font-weight:300;box-shadow:0 10px 24px rgba(47,107,255,.35);cursor:pointer;z-index:6}
 .note{font-size:14px;color:var(--mute);background:var(--card);border-radius:16px;padding:12px 16px;margin:0 0 10px}
@@ -131,10 +146,12 @@ const monthsBetween=(a,b)=>{const[ay,am]=a.split('-').map(Number),[by,bm]=b.spli
 
 let storageOk=true;
 const empty=()=>({income:[],fixed:[],variable:[],goals:[]});
+const norm=d=>{d=Object.assign(empty(),d);d.goals.forEach(g=>{if(!Array.isArray(g.deposits)){g.deposits=[];g.start=+g.saved||0}delete g.saved;g.start=+g.start||0});return d};
+const savedOf=g=>Math.round((g.start+g.deposits.reduce((s,x)=>s+x.amount,0))*100)/100;
 let S=empty();
 const ENC='finanzen.enc';
 let cryptoKey=null,encSalt=null,pinLen=0,locked=false,hiddenAt=0;
-try{const e=localStorage.getItem(ENC);if(e){locked=true;pinLen=JSON.parse(e).n||4}else{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(empty(),JSON.parse(raw))}}catch(e){storageOk=false}
+try{const e=localStorage.getItem(ENC);if(e){locked=true;pinLen=JSON.parse(e).n||4}else{const raw=localStorage.getItem(KEY);if(raw)S=norm(JSON.parse(raw))}}catch(e){storageOk=false}
 const b64=buf=>{const a=new Uint8Array(buf);let s='';for(let i=0;i<a.length;i+=8192)s+=String.fromCharCode.apply(null,a.subarray(i,i+8192));return btoa(s)};
 const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function deriveKey(pin,salt){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
@@ -146,13 +163,15 @@ async function setPin(pin){encSalt=crypto.getRandomValues(new Uint8Array(16));cr
 function removePin(){cryptoKey=null;encSalt=null;pinLen=0;save();render()}
 
 let tab='uebersicht',ym=today().slice(0,7);
+let openSec={fix:true,var:true};try{openSec=Object.assign(openSec,JSON.parse(localStorage.getItem('finanzen.ui')||'{}'))}catch(e){}
+document.addEventListener('toggle',e=>{const d=e.target;if(!d.dataset||!d.dataset.sec)return;openSec[d.dataset.sec]=d.open;try{localStorage.setItem('finanzen.ui',JSON.stringify(openSec))}catch(err){}},true);
 const monthly=it=>it.amount*(INT[it.interval]||INT.m)[1];
 const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
 
 function calc(){
   const inc=sum(S.income,monthly),fix=sum(S.fixed,monthly);
   const vars=S.variable.filter(v=>v.date.startsWith(ym));
-  const vr=sum(vars,v=>v.amount),sav=sum(S.goals.filter(g=>g.saved<g.target),g=>g.rate||0);
+  const vr=sum(vars,v=>v.amount),sav=sum(S.goals,g=>sum(g.deposits.filter(x=>x.date.startsWith(ym)),x=>x.amount));
   return{inc,fix,vars,vr,sav,free:inc-fix-vr-sav};
 }
 
@@ -175,7 +194,7 @@ uebersicht(){
     <div class="tile"><div>Einnahmen</div><strong class="num">${fmt(c.inc)}</strong></div>
     <div class="tile"><div>Fixkosten</div><strong class="num">${fmt(c.fix)}</strong></div>
     <div class="tile"><div>Variable Ausgaben</div><strong class="num">${fmt(c.vr)}</strong></div>
-    <div class="tile"><div>Sparraten</div><strong class="num">${fmt(c.sav)}</strong></div>
+    <div class="tile"><div>Gespart (Monat)</div><strong class="num">${fmt(c.sav)}</strong></div>
   </div>
   <h2>Nach Kategorie <span class="num">${c.inc?Math.round(c.vr/c.inc*100)+' % vom Einkommen':''}</span></h2>
   <div class="rows">${cl.length?cl.map(([k,v])=>`<div class="row" style="cursor:default"><div class="t">${esc(k)}<div class="bar"><i style="width:${(v/max*100).toFixed(1)}%"></i></div></div><span class="num">${fmt(v)}</span></div>`).join(''):'<div class="empty">In diesem Monat noch keine variablen Ausgaben.</div>'}</div>
@@ -183,13 +202,14 @@ uebersicht(){
 },
 ausgaben(){
   const c=calc();
-  const byDate=[...c.vars].sort((a,b)=>b.date.localeCompare(a.date));
-  return `<h2>Fixkosten <span class="num">${fmt(c.fix)} / Monat</span></h2>
-  <div class="rows">${S.fixed.length?S.fixed.map(f=>`<button class="row" type="button" data-act="edit-fixed" data-id="${f.id}"><span class="t">${esc(f.name)}<small>${esc(f.cat)} · ${fmt(f.amount)} ${INT[f.interval][0]}</small></span><span class="num">${fmt(monthly(f))}</span></button>`).join(''):'<div class="empty">Noch keine Fixkosten, z. B. Miete, Versicherungen, Abos.</div>'}</div>
-  <div class="btns"><button class="btn ghost" type="button" data-act="add-fixed">+ Fixkosten</button></div>
-  <h2>Variable Ausgaben · ${esc(mName(ym))} <span class="num">${fmt(c.vr)}</span></h2>
-  <div class="rows">${byDate.length?byDate.map(v=>`<button class="row" type="button" data-act="edit-variable" data-id="${v.id}"><span class="t">${esc(v.name||v.cat)}<small>${new Date(v.date).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})} · ${esc(v.cat)}</small></span><span class="num">${fmt(v.amount)}</span></button>`).join(''):'<div class="empty">Keine Einträge in diesem Monat.</div>'}</div>
-  <div class="btns"><button class="btn ghost" type="button" data-act="add-variable">+ Variable Ausgabe</button></div>`;
+  const fx=[...S.fixed].sort((a,b)=>monthly(b)-monthly(a));
+  const vs=[...c.vars].sort((a,b)=>b.amount-a.amount||b.date.localeCompare(a.date));
+  const sec=(k,title,total,count,body,add)=>`<details class="sec" data-sec="${k}"${openSec[k]?' open':''}><summary><span class="chev" aria-hidden="true"></span><span class="st">${title} <small>${count}</small></span><span class="num">${total}</span></summary>
+    <div class="rows compact">${body}</div><div class="btns"><button class="btn ghost" type="button" data-act="add-${k==='fix'?'fixed':'variable'}">${add}</button></div></details>`;
+  return sec('fix','Fixkosten',fmt(c.fix)+' / Monat',fx.length,
+    fx.length?fx.map(f=>`<button class="row" type="button" data-act="edit-fixed" data-id="${f.id}"><span class="t">${esc(f.name)}<small>${esc(f.cat)}${f.interval!=='m'?' · '+fmt(f.amount)+' '+INT[f.interval][0]:''}</small></span><span class="num">${fmt(monthly(f))}</span></button>`).join(''):'<div class="empty">Noch keine Fixkosten, z. B. Miete, Versicherungen, Abos.</div>','+ Fixkosten')
+   +sec('var','Variable Ausgaben',fmt(c.vr),vs.length,
+    vs.length?vs.map(v=>`<button class="row" type="button" data-act="edit-variable" data-id="${v.id}"><span class="t">${esc(v.name||v.cat)}<small>${new Date(v.date).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})} · ${esc(v.cat)}</small></span><span class="num">${fmt(v.amount)}</span></button>`).join(''):'<div class="empty">Keine Einträge im '+esc(mName(ym))+'.</div>','+ Variable Ausgabe');
 },
 einnahmen(){
   return `<h2>Einnahmen <span class="num">${fmt(sum(S.income,monthly))} / Monat</span></h2>
@@ -198,7 +218,7 @@ einnahmen(){
   <p class="note" style="margin-top:20px">Jährliche oder vierteljährliche Beträge werden auf den Monat umgerechnet.</p>`;
 },
 ziele(){
-  return `<h2>Sparziele <span class="num">${fmt(sum(S.goals,g=>g.saved))} gespart</span></h2>
+  return `<h2>Sparziele <span class="num">${fmt(sum(S.goals,savedOf))} gespart</span></h2>
   ${S.goals.length?S.goals.map(goalCard).join(''):'<div class="empty">Noch kein Sparziel, z. B. Notgroschen, Urlaub, neues Auto.</div>'}
   <div class="btns"><button class="btn ghost" type="button" data-act="add-goal">+ Sparziel</button></div>`;
 },
@@ -223,16 +243,25 @@ backup(){
 }};
 
 function goalCard(g){
-  const p=g.target?Math.min(g.saved/g.target*100,100):0,rest=Math.max(g.target-g.saved,0);
+  const sv=savedOf(g),p=g.target?Math.max(0,Math.min(sv/g.target*100,100)):0,rest=Math.max(g.target-sv,0);
   let info='';
   if(rest===0)info='Ziel erreicht – Glückwunsch!';
   else{
     if(g.deadline){const n=monthsBetween(today().slice(0,7),g.deadline);info+=n>0?`Für ${mName(g.deadline)} brauchst du ${fmt(rest/n)} pro Monat. `:'Zieldatum erreicht. '}
     if(g.rate>0){const n=Math.ceil(rest/g.rate);info+=`Mit ${fmt(g.rate)} im Monat erreicht im ${mName(shiftM(today().slice(0,7),n))}.`}
   }
-  return `<div class="goal"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;align-items:baseline"><strong>${esc(g.name)}</strong><span class="num">${fmt(g.saved)} <span style="color:var(--mute)">/ ${fmt(g.target)}</span></span></div>
+  return `<div class="goal"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;align-items:baseline"><strong>${esc(g.name)}</strong><span class="num">${fmt(sv)} <span style="color:var(--mute)">/ ${fmt(g.target)}</span></span></div>
   <div class="bar"><i style="width:${p.toFixed(1)}%"></i></div><p>${Math.round(p)} % · noch ${fmt(rest)}. ${info}</p>
-  <div class="btns"><button class="btn" type="button" data-act="deposit" data-id="${g.id}">Einzahlen</button><button class="btn ghost" type="button" data-act="edit-goal" data-id="${g.id}">Bearbeiten</button></div></div>`;
+  <div class="btns"><button class="btn" type="button" data-act="deposit" data-id="${g.id}">Einzahlen</button><button class="btn ghost" type="button" data-act="edit-goal" data-id="${g.id}">Bearbeiten</button></div>
+  ${depList(g)}</div>`;
+}
+function depList(g){
+  const d=[...g.deposits].sort((a,b)=>b.date.localeCompare(a.date)||b.id.localeCompare(a.id));
+  if(!d.length&&!g.start)return '';
+  const row=x=>`<div class="dep"><span class="t">${new Date(x.date).toLocaleDateString('de-DE',{day:'2-digit',month:'short',year:'numeric'})}</span><span class="num ${x.amount<0?'warn':''}">${x.amount>0?'+':''}${fmt(x.amount)}</span><button type="button" class="x" data-act="deldep" data-id="${g.id}" data-dep="${x.id}" aria-label="Einzahlung löschen">×</button></div>`;
+  const startRow=g.start?`<div class="dep"><span class="t">Startbetrag</span><span class="num">${fmt(g.start)}</span><span class="x"></span></div>`:'';
+  const head=`Einzahlungen (${d.length})`;
+  return d.length>4?`<details class="deps"><summary>${head}</summary>${d.map(row).join('')}${startRow}</details>`:`<div class="deps"><div class="dh">${head}</div>${d.map(row).join('')}${startRow}</div>`;
 }
 
 const intOpts=Object.entries(INT).map(([k,v])=>[k,v[0]]);
@@ -240,7 +269,7 @@ const FORMS={
   income:{list:'income',title:'Einnahme',fields:[['name','Bezeichnung','text'],['amount','Betrag (netto)','money'],['interval','Rhythmus','select',intOpts]],def:()=>({interval:'m'})},
   fixed:{list:'fixed',title:'Fixkosten',fields:[['name','Bezeichnung','text'],['amount','Betrag','money'],['interval','Rhythmus','select',intOpts],['cat','Kategorie','select',FIXCATS.map(c=>[c,c])]],def:()=>({interval:'m',cat:'Wohnen'})},
   variable:{list:'variable',title:'Variable Ausgabe',fields:[['amount','Betrag','money'],['cat','Kategorie','select',VARCATS.map(c=>[c,c])],['name','Notiz (optional)','text'],['date','Datum','date']],def:()=>({cat:'Lebensmittel',date:ym===today().slice(0,7)?today():ym+'-01'})},
-  goal:{list:'goals',title:'Sparziel',fields:[['name','Bezeichnung','text'],['target','Zielbetrag','money'],['saved','Schon gespart','money'],['rate','Monatliche Sparrate','money'],['deadline','Zieldatum (optional)','month']],def:()=>({saved:0,rate:0})}
+  goal:{list:'goals',title:'Sparziel',fields:[['name','Bezeichnung','text'],['target','Zielbetrag','money'],['start','Startbetrag (schon gespart)','money'],['rate','Monatliche Sparrate','money'],['deadline','Zieldatum (optional)','month']],def:()=>({start:0,rate:0,deposits:[]})}
 };
 
 const modal=document.getElementById('modal'),form=document.getElementById('form');
@@ -260,7 +289,7 @@ function openForm(kind,id){
     for(const[k,l,t]of F.fields){let v=fd.get(k)??'';if(t==='money'){if(v===''&&k!=='amount'&&k!=='target'){v=0}else{v=parseMoney(v);if(!(v>=0)||((k==='amount'||k==='target')&&!v))return `Bitte bei „${l}“ einen gültigen Betrag eingeben.`}}o[k]=typeof v==='string'?v.trim():v}
     if('name' in o&&!o.name&&kind!=='variable')return 'Bitte eine Bezeichnung eingeben.';
     if(kind==='variable'&&!o.date)return 'Bitte ein Datum wählen.';
-    if(id)Object.assign(item,o);else S[F.list].push({id:uid(),...o});
+    if(id)Object.assign(item,o);else S[F.list].push({id:uid(),...(kind==='goal'?{deposits:[]}:{}),...o});
     if(kind==='variable')ym=o.date.slice(0,7);
     save();
   });
@@ -276,7 +305,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.con
 const DEMO=()=>({income:[{id:uid(),name:'Gehalt',amount:2850,interval:'m'},{id:uid(),name:'Weihnachtsgeld',amount:1200,interval:'y'}],
   fixed:[{id:uid(),name:'Miete warm',amount:980,interval:'m',cat:'Wohnen'},{id:uid(),name:'Strom',amount:62,interval:'m',cat:'Nebenkosten'},{id:uid(),name:'Handy & Internet',amount:55,interval:'m',cat:'Kommunikation'},{id:uid(),name:'Haftpflicht',amount:68,interval:'y',cat:'Versicherung'},{id:uid(),name:'Deutschlandticket',amount:58,interval:'m',cat:'Mobilität'},{id:uid(),name:'Streaming',amount:18,interval:'m',cat:'Abos'}],
   variable:[['Lebensmittel','Wocheneinkauf',84.3,3],['Restaurant','Pizza',27.5,6],['Lebensmittel','Markt',23.1,9],['Freizeit','Kino',24,12],['Shopping','Schuhe',89.9,14],['Lebensmittel','Wocheneinkauf',71.65,16],['Gesundheit','Apotheke',12.4,18]].map(([cat,name,amount,d])=>({id:uid(),cat,name,amount,date:ym+'-'+String(d).padStart(2,'0')})),
-  goals:[{id:uid(),name:'Notgroschen',target:6000,saved:2400,rate:250,deadline:''},{id:uid(),name:'Urlaub',target:1500,saved:600,rate:100,deadline:shiftM(ym,8)}]});
+  goals:[{id:uid(),name:'Notgroschen',target:6000,start:1900,rate:250,deadline:'',deposits:[{id:uid(),date:shiftM(ym,-1)+'-28',amount:250},{id:uid(),date:ym+'-01',amount:250}]},{id:uid(),name:'Urlaub',target:1500,start:500,rate:100,deadline:shiftM(ym,8),deposits:[{id:uid(),date:ym+'-02',amount:100}]}]});
 
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act],[data-tab]');if(!b)return;
@@ -286,14 +315,15 @@ document.addEventListener('click',async e=>{
   if(a==='del'){const k=form.dataset.kind,fid=form.dataset.id;return confirmSheet('Eintrag wirklich löschen?','Löschen',()=>{const L=FORMS[k].list;S[L]=S[L].filter(x=>x.id!==fid);save()})}
   if(a.startsWith('add-'))return openForm(a.slice(4));
   if(a.startsWith('edit-'))return openForm(a.slice(5),id);
-  if(a==='deposit'){const g=S.goals.find(x=>x.id===id);openSheet(`<h3>In „${esc(g.name)}“ einzahlen</h3><label for="dep">Betrag (negativ = entnehmen)</label><input id="dep" name="dep" inputmode="decimal" value="${g.rate?String(g.rate).replace('.',','):''}"><div class="err" id="ferr"></div><div class="btns"><button class="btn" type="submit">Buchen</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button></div>`,fd=>{const s=String(fd.get('dep')).trim(),neg=s.startsWith('-'),v=parseMoney(s.replace(/^-/,''));if(!v)return 'Bitte einen Betrag eingeben.';g.saved=Math.max(0,Math.round((g.saved+(neg?-v:v))*100)/100);save()});return}
+  if(a==='deposit'){const g=S.goals.find(x=>x.id===id);openSheet(`<h3>In „${esc(g.name)}“ einzahlen</h3><label for="dep">Betrag (negativ = entnehmen)</label><input id="dep" name="dep" inputmode="decimal" value="${g.rate?String(g.rate).replace('.',','):''}"><label for="ddate">Datum</label><input id="ddate" name="ddate" type="date" value="${ym===today().slice(0,7)?today():ym+'-01'}"><div class="err" id="ferr"></div><div class="btns"><button class="btn" type="submit">Buchen</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button></div>`,fd=>{const s=String(fd.get('dep')).trim(),neg=s.startsWith('-'),v=parseMoney(s.replace(/^-/,''));if(!v)return 'Bitte einen Betrag eingeben.';const dt=String(fd.get('ddate'))||today();g.deposits.push({id:uid(),date:dt,amount:neg?-v:v});save()});return}
+  if(a==='deldep'){const g=S.goals.find(x=>x.id===id),dp=g&&g.deposits.find(x=>x.id===b.dataset.dep);if(!dp)return;return confirmSheet(`Einzahlung über ${fmt(dp.amount)} vom ${new Date(dp.date).toLocaleDateString('de-DE')} löschen?`,'Löschen',()=>{g.deposits=g.deposits.filter(x=>x!==dp);save()})}
   if(a==='setpin')return openSheet(`<h3>${cryptoKey?'Neue PIN':'PIN festlegen'}</h3><p class="note" style="margin-top:8px">4 bis 6 Ziffern. Wenn du die PIN vergisst, sind die Daten nicht wiederherstellbar – nur über ein Backup.</p><label for="p1">PIN</label><input id="p1" name="p1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6"><label for="p2">PIN wiederholen</label><input id="p2" name="p2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6"><div class="err" id="ferr"></div><div class="btns"><button class="btn" type="submit">Speichern</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button></div>`,fd=>{const p=String(fd.get('p1')),q=String(fd.get('p2'));if(!/^\d{4,6}$/.test(p))return 'Die PIN muss aus 4 bis 6 Ziffern bestehen.';if(p!==q)return 'Die beiden PINs stimmen nicht überein.';setPin(p)});
   if(a==='rmpin')return confirmSheet('PIN entfernen? Die Daten werden dann wieder unverschlüsselt gespeichert.','Entfernen',removePin);
   if(a==='forgot')return confirmSheet('Ohne PIN lassen sich die Daten nicht entschlüsseln. Alles löschen und neu anfangen?','Alles löschen',()=>{locked=false;cryptoKey=null;pinLen=0;S=empty();try{localStorage.removeItem(ENC)}catch(e){}save();showLock(false)});
-  if(a==='demo'){S=DEMO();save();render();return}
+  if(a==='demo'){S=norm(DEMO());save();render();return}
   if(a==='copy'){const t=document.getElementById('exp'),m=document.getElementById('cmsg');try{await navigator.clipboard.writeText(t.value);m.textContent='Kopiert. Füge es z. B. in eine Notiz auf deinem Handy ein.'}catch(err){t.focus();t.select();m.textContent='Text markiert – bitte manuell kopieren.'}return}
   if(a==='download'){try{const url=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));const l=document.createElement('a');l.href=url;l.download='finanzen-backup-'+today()+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);document.getElementById('cmsg').textContent='Falls kein Download startet: „Backup kopieren“ nutzen.'}catch(err){document.getElementById('cmsg').textContent='Download hier nicht möglich – bitte „Backup kopieren“ nutzen.'}return}
-  if(a==='import'){const m=document.getElementById('imsg');let txt=document.getElementById('imp').value.trim();const f=document.getElementById('impf').files[0];if(!txt&&f)txt=await f.text();try{const d=JSON.parse(txt);if(!d||!Array.isArray(d.income)||!Array.isArray(d.fixed)||!Array.isArray(d.variable)||!Array.isArray(d.goals))throw 0;confirmSheet('Aktuelle Daten durch das Backup ersetzen?','Ersetzen',()=>{S=d;save()})}catch(err){m.textContent='Das sieht nicht nach einem gültigen Backup aus.'}return}
+  if(a==='import'){const m=document.getElementById('imsg');let txt=document.getElementById('imp').value.trim();const f=document.getElementById('impf').files[0];if(!txt&&f)txt=await f.text();try{const d=JSON.parse(txt);if(!d||!Array.isArray(d.income)||!Array.isArray(d.fixed)||!Array.isArray(d.variable)||!Array.isArray(d.goals))throw 0;confirmSheet('Aktuelle Daten durch das Backup ersetzen?','Ersetzen',()=>{S=norm(d);save()})}catch(err){m.textContent='Das sieht nicht nach einem gültigen Backup aus.'}return}
   if(a==='wipe')return confirmSheet('Wirklich alle Daten unwiderruflich löschen?','Alles löschen',()=>{S=empty();cryptoKey=null;pinLen=0;save()});
 });
 
@@ -311,7 +341,7 @@ async function tryUnlock(){
   busy=true;lerr.textContent='Prüfe …';
   try{const e=JSON.parse(localStorage.getItem(ENC));const salt=unb64(e.salt),key=await deriveKey(entry,salt);
     const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(e.iv)},key,unb64(e.ct));
-    S=Object.assign(empty(),JSON.parse(new TextDecoder().decode(pt)));cryptoKey=key;encSalt=salt;pinLen=e.n||entry.length;locked=false;fails=0;showLock(false)}
+    S=norm(JSON.parse(new TextDecoder().decode(pt)));cryptoKey=key;encSalt=salt;pinLen=e.n||entry.length;locked=false;fails=0;showLock(false)}
   catch(err){fails++;entry='';drawDots();
     if(fails>=5){waitUntil=Date.now()+30000;lerr.textContent='Zu viele Versuche – bitte 30 Sekunden warten.';pad.querySelectorAll('button').forEach(b=>b.disabled=true);setTimeout(()=>{pad.querySelectorAll('button').forEach(b=>b.disabled=false);lerr.textContent='';fails=0},30000)}
     else lerr.textContent='Falsche PIN.'}
