@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meine Finanzen</title>
+<style>
+/* VOICE: still, aufgeräumt, wie eine gute Banking-App – Zahlen tragen die Seite.
+   IDEA: ein leeres Blatt mit einer einzigen großen Zahl.
+   PICTURE: die große Zahl "frei verfügbar" und ein dünner Aufteilungsbalken.
+   COLOUR and TYPE: fast Weiß / fast Schwarz, Grautöne, ein ruhiges Blau als einziger Akzent; Systemschrift.
+   LAYOUT: eine Spalte bis 640px, Monat als Überschrift, Tab-Leiste unten mit Unschärfe. */
+:root{color-scheme:light dark;
+--bg:light-dark(#f7f7f8,#0b0b0c);--card:light-dark(#ffffff,#161618);--ink:light-dark(#111113,#f2f2f3);--mute:light-dark(#8a8a92,#8d8d96);
+--zone:light-dark(#efeff1,#1f1f22);--line:light-dark(#ececef,#242427);--blue:#2f6bff;--blue2:light-dark(#2f6bff,#6f97ff);
+--fix:light-dark(#111113,#f2f2f3);--var:light-dark(#a4a4ac,#6c6c74);--save:#2f6bff;--neg:light-dark(#d92d3a,#ff6b74);--btn:light-dark(#111113,#f2f2f3);--btnink:light-dark(#fff,#111113)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,sans-serif;overflow-x:clip;padding-bottom:calc(110px + env(safe-area-inset-bottom));-webkit-font-smoothing:antialiased}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+header{padding:max(22px,env(safe-area-inset-top)) max(6vw,20px) 0;max-width:640px;margin:0 auto}
+.hrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:13px;font-weight:600;color:var(--mute);margin:0}
+.month{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px}
+.month span{font-size:clamp(21px,6.2vw,28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700;letter-spacing:-.025em}
+.month div{display:flex;gap:6px}
+.month button{background:var(--zone);color:var(--ink);border:0;width:38px;height:38px;flex:none;border-radius:50%;font-size:20px;line-height:1;cursor:pointer}
+nav{position:fixed;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom));z-index:5;display:flex;gap:2px;padding:5px;border-radius:999px;background:color-mix(in srgb,var(--card) 82%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 8px 30px rgba(0,0,0,.12),0 0 0 1px var(--line);width:min(calc(100vw - 24px),480px)}
+nav button{background:none;border:0;color:var(--mute);font-family:inherit;font-weight:600;font-size:12.5px;padding:0 4px;height:42px;flex:1 1 auto;white-space:nowrap;border-radius:999px;cursor:pointer}
+nav button[aria-selected=true]{background:var(--btn);color:var(--btnink)}
+main{max-width:640px;margin:0 auto;padding:18px max(6vw,20px)}
+input[type=date],input[type=month]{font-family:inherit}
+.hero{padding:18px 0 6px}
+.hero small{color:var(--mute);font-size:14px}
+.big{font-size:clamp(44px,14vw,64px);font-weight:700;line-height:1;letter-spacing:-.04em;margin:6px 0 20px}
+.hero p{color:var(--mute)}
+.split{display:flex;gap:3px;height:8px}
+.split i{display:block;height:100%;border-radius:4px}
+.split::after{content:"";flex:1;background:var(--zone);border-radius:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:13px;color:var(--mute)}
+.legend b{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:22px}
+.tile{background:var(--card);border-radius:18px;padding:14px 16px}
+.tile div{font-size:13px;color:var(--mute)}.tile strong{font-size:19px;font-weight:650;letter-spacing:-.01em}
+h2{font-size:13px;font-weight:600;color:var(--mute);margin:30px 4px 8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h2 .num{font-weight:500}
+.rows{background:var(--card);border-radius:18px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:13px 16px;border:0;border-bottom:1px solid var(--line);cursor:pointer;width:100%;background:none;color:inherit;font:inherit;text-align:left;min-height:58px}
+.row:last-child{border-bottom:0}
+.row:active{background:var(--zone)}
+.row .t{flex:1;font-weight:500}.row .t small{display:block;color:var(--mute);font-size:13px;font-weight:400}
+.row .num{font-weight:600}
+.bar{height:4px;border-radius:2px;background:var(--zone);overflow:hidden;margin-top:8px}.bar i{display:block;height:100%;background:var(--fix);border-radius:2px}
+.empty{color:var(--mute);padding:18px 16px;font-size:15px}
+.btn{background:var(--btn);color:var(--btnink);border:0;border-radius:999px;padding:0 20px;min-height:44px;font-family:inherit;font-weight:600;font-size:15px;cursor:pointer}
+.btn.ghost{background:var(--zone);color:var(--ink)}.btn.danger{background:none;color:var(--neg);box-shadow:inset 0 0 0 1px var(--neg)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.goal{background:var(--card);border-radius:18px;padding:18px;margin-bottom:8px}
+.goal .bar{height:6px;border-radius:3px;margin-top:12px}.goal .bar i{background:var(--save)}
+.goal p{margin:10px 0 0;color:var(--mute);font-size:14px}
+.fab{position:fixed;right:max(20px,calc(50vw - 300px));bottom:calc(max(14px,env(safe-area-inset-bottom)) + 66px);width:56px;height:56px;border-radius:50%;background:var(--blue);color:#fff;border:0;font-size:28px;font-weight:300;box-shadow:0 10px 24px rgba(47,107,255,.35);cursor:pointer;z-index:6}
+.note{font-size:14px;color:var(--mute);background:var(--card);border-radius:16px;padding:12px 16px;margin:0 0 10px}
+.warn{color:var(--neg)}
+body.locked header,body.locked main,body.locked nav,body.locked .fab{display:none}
+.lock{position:fixed;inset:0;z-index:8;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:6px}
+.lock[hidden]{display:none}
+.lock h3{margin:8px 0 10px;font-size:20px;letter-spacing:-.02em}
+.dots{display:flex;gap:14px;height:16px;margin-bottom:4px}
+.dots i{width:13px;height:13px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--mute)}.dots i.on{background:var(--ink);box-shadow:none}
+.lerr{color:var(--neg);font-size:14px;min-height:22px}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px 22px;margin-top:6px}
+.pad button{width:72px;height:72px;border-radius:50%;border:0;background:var(--card);color:var(--ink);font-family:inherit;font-size:28px;font-weight:400;cursor:pointer;box-shadow:0 1px 0 var(--line)}
+.pad button:active{background:var(--zone)}.pad .nb{background:none;box-shadow:none;font-size:15px;color:var(--mute)}
+.pad button:disabled{opacity:.35}
+.forgot{margin-top:18px;background:none;border:0;color:var(--mute);font-family:inherit;font-size:14px;min-height:44px;cursor:pointer}
+#lockbtn{display:inline-flex;align-items:center;justify-content:center}#lockbtn[hidden]{display:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:none;align-items:flex-end;justify-content:center;z-index:9}
+.modal.open{display:flex}
+.sheet{background:var(--card);width:100%;max-width:520px;border-radius:26px 26px 0 0;padding:24px 22px max(22px,env(safe-area-inset-bottom));max-height:92vh;overflow:auto}
+@media(min-width:600px){.modal{align-items:center}.sheet{border-radius:26px}}
+.sheet h3{margin:0 0 8px;font-size:22px;letter-spacing:-.02em}
+label{display:block;font-size:13px;color:var(--mute);margin:14px 0 6px}
+input,select,textarea{width:100%;font-family:inherit;font-size:16px;color:var(--ink);background:var(--zone);border:0;border-radius:14px;padding:12px 14px;min-height:48px;appearance:none;-webkit-appearance:none}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--mute) 50%),linear-gradient(135deg,var(--mute) 50%,transparent 50%);background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat}
+textarea{min-height:110px;font-family:ui-monospace,monospace;font-size:13px;background:var(--card)}
+main textarea{margin-top:10px}
+:focus-visible{outline:2px solid var(--blue2);outline-offset:2px}
+.err{color:var(--neg);font-size:14px;min-height:20px;margin-top:8px}
+@media(prefers-reduced-motion:no-preference){.split i,.bar i{transition:width .5s cubic-bezier(.2,.8,.2,1)}.sheet{animation:up .28s cubic-bezier(.2,.8,.2,1)}@keyframes up{from{transform:translateY(24px);opacity:0}}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Meine Finanzen</h1>
+  <div class="month"><span id="mlabel"></span><div><button id="lockbtn" aria-label="Jetzt sperren" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></button><button id="prev" aria-label="Vorheriger Monat">‹</button><button id="next" aria-label="Nächster Monat">›</button></div></div>
+</header>
+<main id="view"></main>
+<nav id="tabs" role="tablist">
+  <button data-tab="uebersicht">Start</button>
+  <button data-tab="ausgaben">Ausgaben</button>
+  <button data-tab="einnahmen">Einnahmen</button>
+  <button data-tab="ziele">Ziele</button>
+  <button data-tab="backup">Mehr</button>
+</nav>
+<button class="fab" id="fab" aria-label="Ausgabe hinzufügen">+</button>
+<div class="lock" id="lock" hidden>
+  <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+  <h3>PIN eingeben</h3>
+  <div class="dots" id="dots"></div>
+  <div class="lerr" id="lerr" role="alert"></div>
+  <div class="pad" id="pad"></div>
+  <button class="forgot" type="button" data-act="forgot">PIN vergessen?</button>
+</div>
+<div class="modal" id="modal"><form class="sheet" id="form"></form></div>
+
+<script>
+{
+const KEY='finanzen.v1';
+const FIXCATS=['Wohnen','Nebenkosten','Versicherung','Abos','Mobilität','Kredit','Kommunikation','Sonstiges'];
+const VARCATS=['Lebensmittel','Restaurant','Mobilität','Freizeit','Shopping','Gesundheit','Haushalt','Geschenke','Sonstiges'];
+const INT={m:['monatlich',1],q:['vierteljährlich',1/3],h:['halbjährlich',1/6],y:['jährlich',1/12]};
+const eur=new Intl.NumberFormat('de-DE',{style:'currency',currency:'EUR'});
+const fmt=v=>eur.format(v||0);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const today=()=>new Date().toISOString().slice(0,10);
+const parseMoney=v=>{let s=String(v).trim().replace(/\s|€/g,'');if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=parseFloat(s);return isFinite(n)?Math.round(n*100)/100:NaN};
+const mName=ym=>{const[y,m]=ym.split('-');return new Date(y,m-1,1).toLocaleDateString('de-DE',{month:'long',year:'numeric'})};
+const shiftM=(ym,d)=>{const[y,m]=ym.split('-').map(Number);const t=new Date(y,m-1+d,1);return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')};
+const monthsBetween=(a,b)=>{const[ay,am]=a.split('-').map(Number),[by,bm]=b.split('-').map(Number);return(by-ay)*12+(bm-am)};
+
+let storageOk=true;
+const empty=()=>({income:[],fixed:[],variable:[],goals:[]});
+let S=empty();
+const ENC='finanzen.enc';
+let cryptoKey=null,encSalt=null,pinLen=0,locked=false,hiddenAt=0;
+try{const e=localStorage.getItem(ENC);if(e){locked=true;pinLen=JSON.parse(e).n||4}else{const raw=localStorage.getItem(KEY);if(raw)S=Object.assign(empty(),JSON.parse(raw))}}catch(e){storageOk=false}
+const b64=buf=>{const a=new Uint8Array(buf);let s='';for(let i=0;i<a.length;i+=8192)s+=String.fromCharCode.apply(null,a.subarray(i,i+8192));return btoa(s)};
+const unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function deriveKey(pin,salt){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pin),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:310000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt'])}
+let saveChain=Promise.resolve();
+const save=()=>{if(locked)return;saveChain=saveChain.then(async()=>{try{
+  if(cryptoKey){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,new TextEncoder().encode(JSON.stringify(S)));localStorage.setItem(ENC,JSON.stringify({v:1,n:pinLen,salt:b64(encSalt),iv:b64(iv),ct:b64(ct)}));localStorage.removeItem(KEY)}
+  else{localStorage.setItem(KEY,JSON.stringify(S));localStorage.removeItem(ENC)}storageOk=true}catch(e){storageOk=false}})};
+async function setPin(pin){encSalt=crypto.getRandomValues(new Uint8Array(16));cryptoKey=await deriveKey(pin,encSalt);pinLen=pin.length;save();render()}
+function removePin(){cryptoKey=null;encSalt=null;pinLen=0;save();render()}
+
+let tab='uebersicht',ym=today().slice(0,7);
+const monthly=it=>it.amount*(INT[it.interval]||INT.m)[1];
+const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
+
+function calc(){
+  const inc=sum(S.income,monthly),fix=sum(S.fixed,monthly);
+  const vars=S.variable.filter(v=>v.date.startsWith(ym));
+  const vr=sum(vars,v=>v.amount),sav=sum(S.goals.filter(g=>g.saved<g.target),g=>g.rate||0);
+  return{inc,fix,vars,vr,sav,free:inc-fix-vr-sav};
+}
+
+const V={
+uebersicht(){
+  const c=calc();
+  if(!S.income.length&&!S.fixed.length&&!S.variable.length&&!S.goals.length)return `
+    <div class="hero"><small>Noch leer</small><div class="big">Los geht's</div>
+    <p style="margin:0">Trag zuerst dein Einkommen ein, dann deine Fixkosten. Variable Ausgaben fügst du jederzeit mit dem Plus unten rechts hinzu.</p>
+    <div class="btns"><button class="btn" data-act="add-income" type="button">Einkommen eintragen</button><button class="btn ghost" data-act="demo" type="button">Beispieldaten ansehen</button></div></div>`;
+  const base=Math.max(c.inc,c.fix+c.vr+c.sav,1),pct=v=>(Math.max(v,0)/base*100).toFixed(1)+'%';
+  const cats={};c.vars.forEach(v=>cats[v.cat]=(cats[v.cat]||0)+v.amount);
+  const cl=Object.entries(cats).sort((a,b)=>b[1]-a[1]),max=cl[0]?.[1]||1;
+  return `<div class="hero"><small>Frei verfügbar im ${esc(mName(ym).split(' ')[0])}</small>
+    <div class="big num ${c.free<0?'warn':''}">${fmt(c.free)}</div>
+    <div class="split" role="img" aria-label="Aufteilung des Einkommens"><i style="width:${pct(c.fix)};background:var(--fix)"></i><i style="width:${pct(c.vr)};background:var(--var)"></i><i style="width:${pct(c.sav)};background:var(--save)"></i></div>
+    <div class="legend"><span><b style="background:var(--fix)"></b>Fixkosten</span><span><b style="background:var(--var)"></b>Variabel</span><span><b style="background:var(--save)"></b>Sparen</span><span><b style="background:var(--zone)"></b>Frei</span></div>
+    ${c.free<0?'<p class="warn" style="margin:12px 0 0;font-size:14px">Du gibst diesen Monat mehr aus, als reinkommt.</p>':''}</div>
+  <div class="grid">
+    <div class="tile"><div>Einnahmen</div><strong class="num">${fmt(c.inc)}</strong></div>
+    <div class="tile"><div>Fixkosten</div><strong class="num">${fmt(c.fix)}</strong></div>
+    <div class="tile"><div>Variable Ausgaben</div><strong class="num">${fmt(c.vr)}</strong></div>
+    <div class="tile"><div>Sparraten</div><strong class="num">${fmt(c.sav)}</strong></div>
+  </div>
+  <h2>Nach Kategorie <span class="num">${c.inc?Math.round(c.vr/c.inc*100)+' % vom Einkommen':''}</span></h2>
+  <div class="rows">${cl.length?cl.map(([k,v])=>`<div class="row" style="cursor:default"><div class="t">${esc(k)}<div class="bar"><i style="width:${(v/max*100).toFixed(1)}%"></i></div></div><span class="num">${fmt(v)}</span></div>`).join(''):'<div class="empty">In diesem Monat noch keine variablen Ausgaben.</div>'}</div>
+  ${S.goals.length?`<h2>Sparziele</h2>${S.goals.map(goalCard).join('')}`:''}`;
+},
+ausgaben(){
+  const c=calc();
+  const byDate=[...c.vars].sort((a,b)=>b.date.localeCompare(a.date));
+  return `<h2>Fixkosten <span class="num">${fmt(c.fix)} / Monat</span></h2>
+  <div class="rows">${S.fixed.length?S.fixed.map(f=>`<button class="row" type="button" data-act="edit-fixed" data-id="${f.id}"><span class="t">${esc(f.name)}<small>${esc(f.cat)} · ${fmt(f.amount)} ${INT[f.interval][0]}</small></span><span class="num">${fmt(monthly(f))}</span></button>`).join(''):'<div class="empty">Noch keine Fixkosten, z. B. Miete, Versicherungen, Abos.</div>'}</div>
+  <div class="btns"><button class="btn ghost" type="button" data-act="add-fixed">+ Fixkosten</button></div>
+  <h2>Variable Ausgaben · ${esc(mName(ym))} <span class="num">${fmt(c.vr)}</span></h2>
+  <div class="rows">${byDate.length?byDate.map(v=>`<button class="row" type="button" data-act="edit-variable" data-id="${v.id}"><span class="t">${esc(v.name||v.cat)}<small>${new Date(v.date).toLocaleDateString('de-DE',{day:'2-digit',month:'short'})} · ${esc(v.cat)}</small></span><span class="num">${fmt(v.amount)}</span></button>`).join(''):'<div class="empty">Keine Einträge in diesem Monat.</div>'}</div>
+  <div class="btns"><button class="btn ghost" type="button" data-act="add-variable">+ Variable Ausgabe</button></div>`;
+},
+einnahmen(){
+  return `<h2>Einnahmen <span class="num">${fmt(sum(S.income,monthly))} / Monat</span></h2>
+  <div class="rows">${S.income.length?S.income.map(i=>`<button class="row" type="button" data-act="edit-income" data-id="${i.id}"><span class="t">${esc(i.name)}<small>${fmt(i.amount)} ${INT[i.interval][0]}</small></span><span class="num">${fmt(monthly(i))}</span></button>`).join(''):'<div class="empty">Noch kein Einkommen eingetragen, z. B. Gehalt (netto), Kindergeld, Nebenjob.</div>'}</div>
+  <div class="btns"><button class="btn ghost" type="button" data-act="add-income">+ Einnahme</button></div>
+  <p class="note" style="margin-top:20px">Jährliche oder vierteljährliche Beträge werden auf den Monat umgerechnet.</p>`;
+},
+ziele(){
+  return `<h2>Sparziele <span class="num">${fmt(sum(S.goals,g=>g.saved))} gespart</span></h2>
+  ${S.goals.length?S.goals.map(goalCard).join(''):'<div class="empty">Noch kein Sparziel, z. B. Notgroschen, Urlaub, neues Auto.</div>'}
+  <div class="btns"><button class="btn ghost" type="button" data-act="add-goal">+ Sparziel</button></div>`;
+},
+backup(){
+  return `<h2>PIN-Sperre</h2>
+  <p class="note">${cryptoKey?'Aktiv. Deine Daten sind auf diesem Gerät mit deiner PIN verschlüsselt. Die App sperrt sich, wenn du sie länger als eine Minute verlässt.':'Aus. Mit einer PIN wird die App beim Öffnen gesperrt und deine Daten werden auf dem Gerät verschlüsselt gespeichert.'}</p>
+  <div class="btns">${cryptoKey?'<button class="btn ghost" type="button" data-act="setpin">PIN ändern</button><button class="btn danger" type="button" data-act="rmpin">PIN entfernen</button>':'<button class="btn" type="button" data-act="setpin">PIN festlegen</button>'}</div>
+  <h2>Wo liegen meine Daten?</h2>
+  <p class="note">Alles wird ausschließlich im Speicher dieses Browsers auf diesem Gerät abgelegt. Nichts wird an einen Server geschickt, und es werden keine externen Dateien geladen. ${storageOk?'':'<br><strong class="warn">Der Browser-Speicher ist hier gerade nicht verfügbar – deine Einträge gehen beim Schließen verloren. Bitte Backup nutzen.</strong>'}</p>
+  <p class="note">Wenn du die Browserdaten löschst oder den privaten Modus nutzt, sind die Einträge weg. Mach deshalb ab und zu ein Backup.</p>
+  <h2>Backup erstellen</h2>${cryptoKey?'<p class="note">Achtung: Das Backup ist <strong>nicht</strong> verschlüsselt. Bewahre es an einem sicheren Ort auf.</p>':''}
+  <div class="btns"><button class="btn" type="button" data-act="copy">Backup kopieren</button><button class="btn ghost" type="button" data-act="download">Als Datei speichern</button></div>
+  <textarea id="exp" readonly aria-label="Backup-Text" style="margin-top:12px">${esc(JSON.stringify(S))}</textarea>
+  <div class="err" id="cmsg" style="color:var(--save)"></div>
+  <h2>Backup wiederherstellen</h2>
+  <label for="imp">Backup-Text einfügen</label><textarea id="imp" placeholder='{"income":[…]}'></textarea>
+  <label for="impf">oder Backup-Datei wählen</label><input type="file" id="impf" accept=".json,application/json,text/plain">
+  <div class="btns"><button class="btn" type="button" data-act="import">Wiederherstellen</button></div>
+  <div class="err" id="imsg"></div>
+  <h2>Alles löschen</h2>
+  <div class="btns"><button class="btn danger" type="button" data-act="wipe">Alle Daten löschen</button></div>`;
+}};
+
+function goalCard(g){
+  const p=g.target?Math.min(g.saved/g.target*100,100):0,rest=Math.max(g.target-g.saved,0);
+  let info='';
+  if(rest===0)info='Ziel erreicht – Glückwunsch!';
+  else{
+    if(g.deadline){const n=monthsBetween(today().slice(0,7),g.deadline);info+=n>0?`Für ${mName(g.deadline)} brauchst du ${fmt(rest/n)} pro Monat. `:'Zieldatum erreicht. '}
+    if(g.rate>0){const n=Math.ceil(rest/g.rate);info+=`Mit ${fmt(g.rate)} im Monat erreicht im ${mName(shiftM(today().slice(0,7),n))}.`}
+  }
+  return `<div class="goal"><div style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 8px;align-items:baseline"><strong>${esc(g.name)}</strong><span class="num">${fmt(g.saved)} <span style="color:var(--mute)">/ ${fmt(g.target)}</span></span></div>
+  <div class="bar"><i style="width:${p.toFixed(1)}%"></i></div><p>${Math.round(p)} % · noch ${fmt(rest)}. ${info}</p>
+  <div class="btns"><button class="btn" type="button" data-act="deposit" data-id="${g.id}">Einzahlen</button><button class="btn ghost" type="button" data-act="edit-goal" data-id="${g.id}">Bearbeiten</button></div></div>`;
+}
+
+const intOpts=Object.entries(INT).map(([k,v])=>[k,v[0]]);
+const FORMS={
+  income:{list:'income',title:'Einnahme',fields:[['name','Bezeichnung','text'],['amount','Betrag (netto)','money'],['interval','Rhythmus','select',intOpts]],def:()=>({interval:'m'})},
+  fixed:{list:'fixed',title:'Fixkosten',fields:[['name','Bezeichnung','text'],['amount','Betrag','money'],['interval','Rhythmus','select',intOpts],['cat','Kategorie','select',FIXCATS.map(c=>[c,c])]],def:()=>({interval:'m',cat:'Wohnen'})},
+  variable:{list:'variable',title:'Variable Ausgabe',fields:[['amount','Betrag','money'],['cat','Kategorie','select',VARCATS.map(c=>[c,c])],['name','Notiz (optional)','text'],['date','Datum','date']],def:()=>({cat:'Lebensmittel',date:ym===today().slice(0,7)?today():ym+'-01'})},
+  goal:{list:'goals',title:'Sparziel',fields:[['name','Bezeichnung','text'],['target','Zielbetrag','money'],['saved','Schon gespart','money'],['rate','Monatliche Sparrate','money'],['deadline','Zieldatum (optional)','month']],def:()=>({saved:0,rate:0})}
+};
+
+const modal=document.getElementById('modal'),form=document.getElementById('form');
+let onSubmit=null;
+function openSheet(html,submit){form.innerHTML=html;onSubmit=submit;modal.classList.add('open');setTimeout(()=>form.querySelector('input,select,button')?.focus(),30)}
+function closeSheet(){modal.classList.remove('open');onSubmit=null}
+
+function openForm(kind,id){
+  const F=FORMS[kind],item=id?S[F.list].find(x=>x.id===id):F.def();
+  const val=k=>item[k]??'';
+  openSheet(`<h3>${F.title} ${id?'bearbeiten':'hinzufügen'}</h3>
+    ${F.fields.map(([k,l,t,o])=>`<label for="f_${k}">${l}</label>`+(t==='select'?`<select id="f_${k}" name="${k}">${o.map(([v,n])=>`<option value="${esc(v)}"${val(k)===v?' selected':''}>${esc(n)}</option>`).join('')}</select>`:`<input id="f_${k}" name="${k}" ${t==='money'?`inputmode="decimal" placeholder="0,00" value="${val(k)!==''?String(val(k)).replace('.',','):''}"`:`type="${t}" value="${esc(val(k))}"`} autocomplete="off">`)).join('')}
+    <div class="err" id="ferr"></div>
+    <div class="btns"><button class="btn" type="submit">Speichern</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button>${id?'<button class="btn danger" type="button" data-act="del">Löschen</button>':''}</div>`,
+  fd=>{
+    const o={};
+    for(const[k,l,t]of F.fields){let v=fd.get(k)??'';if(t==='money'){if(v===''&&k!=='amount'&&k!=='target'){v=0}else{v=parseMoney(v);if(!(v>=0)||((k==='amount'||k==='target')&&!v))return `Bitte bei „${l}“ einen gültigen Betrag eingeben.`}}o[k]=typeof v==='string'?v.trim():v}
+    if('name' in o&&!o.name&&kind!=='variable')return 'Bitte eine Bezeichnung eingeben.';
+    if(kind==='variable'&&!o.date)return 'Bitte ein Datum wählen.';
+    if(id)Object.assign(item,o);else S[F.list].push({id:uid(),...o});
+    if(kind==='variable')ym=o.date.slice(0,7);
+    save();
+  });
+  form.dataset.kind=kind;form.dataset.id=id||'';
+}
+
+function confirmSheet(text,label,fn){openSheet(`<h3>${text}</h3><div class="btns"><button class="btn danger" type="submit">${label}</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button></div>`,()=>{fn()})}
+
+form.addEventListener('submit',e=>{e.preventDefault();if(!onSubmit)return;const r=onSubmit(new FormData(form));if(typeof r==='string'){form.querySelector('#ferr').textContent=r;return}closeSheet();render()});
+modal.addEventListener('click',e=>{if(e.target===modal)closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal.classList.contains('open'))closeSheet()});
+
+const DEMO=()=>({income:[{id:uid(),name:'Gehalt',amount:2850,interval:'m'},{id:uid(),name:'Weihnachtsgeld',amount:1200,interval:'y'}],
+  fixed:[{id:uid(),name:'Miete warm',amount:980,interval:'m',cat:'Wohnen'},{id:uid(),name:'Strom',amount:62,interval:'m',cat:'Nebenkosten'},{id:uid(),name:'Handy & Internet',amount:55,interval:'m',cat:'Kommunikation'},{id:uid(),name:'Haftpflicht',amount:68,interval:'y',cat:'Versicherung'},{id:uid(),name:'Deutschlandticket',amount:58,interval:'m',cat:'Mobilität'},{id:uid(),name:'Streaming',amount:18,interval:'m',cat:'Abos'}],
+  variable:[['Lebensmittel','Wocheneinkauf',84.3,3],['Restaurant','Pizza',27.5,6],['Lebensmittel','Markt',23.1,9],['Freizeit','Kino',24,12],['Shopping','Schuhe',89.9,14],['Lebensmittel','Wocheneinkauf',71.65,16],['Gesundheit','Apotheke',12.4,18]].map(([cat,name,amount,d])=>({id:uid(),cat,name,amount,date:ym+'-'+String(d).padStart(2,'0')})),
+  goals:[{id:uid(),name:'Notgroschen',target:6000,saved:2400,rate:250,deadline:''},{id:uid(),name:'Urlaub',target:1500,saved:600,rate:100,deadline:shiftM(ym,8)}]});
+
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act],[data-tab]');if(!b)return;
+  if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
+  const a=b.dataset.act,id=b.dataset.id;
+  if(a==='close')return closeSheet();
+  if(a==='del'){const k=form.dataset.kind,fid=form.dataset.id;return confirmSheet('Eintrag wirklich löschen?','Löschen',()=>{const L=FORMS[k].list;S[L]=S[L].filter(x=>x.id!==fid);save()})}
+  if(a.startsWith('add-'))return openForm(a.slice(4));
+  if(a.startsWith('edit-'))return openForm(a.slice(5),id);
+  if(a==='deposit'){const g=S.goals.find(x=>x.id===id);openSheet(`<h3>In „${esc(g.name)}“ einzahlen</h3><label for="dep">Betrag (negativ = entnehmen)</label><input id="dep" name="dep" inputmode="decimal" value="${g.rate?String(g.rate).replace('.',','):''}"><div class="err" id="ferr"></div><div class="btns"><button class="btn" type="submit">Buchen</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button></div>`,fd=>{const s=String(fd.get('dep')).trim(),neg=s.startsWith('-'),v=parseMoney(s.replace(/^-/,''));if(!v)return 'Bitte einen Betrag eingeben.';g.saved=Math.max(0,Math.round((g.saved+(neg?-v:v))*100)/100);save()});return}
+  if(a==='setpin')return openSheet(`<h3>${cryptoKey?'Neue PIN':'PIN festlegen'}</h3><p class="note" style="margin-top:8px">4 bis 6 Ziffern. Wenn du die PIN vergisst, sind die Daten nicht wiederherstellbar – nur über ein Backup.</p><label for="p1">PIN</label><input id="p1" name="p1" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6"><label for="p2">PIN wiederholen</label><input id="p2" name="p2" type="password" inputmode="numeric" autocomplete="new-password" maxlength="6"><div class="err" id="ferr"></div><div class="btns"><button class="btn" type="submit">Speichern</button><button class="btn ghost" type="button" data-act="close">Abbrechen</button></div>`,fd=>{const p=String(fd.get('p1')),q=String(fd.get('p2'));if(!/^\d{4,6}$/.test(p))return 'Die PIN muss aus 4 bis 6 Ziffern bestehen.';if(p!==q)return 'Die beiden PINs stimmen nicht überein.';setPin(p)});
+  if(a==='rmpin')return confirmSheet('PIN entfernen? Die Daten werden dann wieder unverschlüsselt gespeichert.','Entfernen',removePin);
+  if(a==='forgot')return confirmSheet('Ohne PIN lassen sich die Daten nicht entschlüsseln. Alles löschen und neu anfangen?','Alles löschen',()=>{locked=false;cryptoKey=null;pinLen=0;S=empty();try{localStorage.removeItem(ENC)}catch(e){}save();showLock(false)});
+  if(a==='demo'){S=DEMO();save();render();return}
+  if(a==='copy'){const t=document.getElementById('exp'),m=document.getElementById('cmsg');try{await navigator.clipboard.writeText(t.value);m.textContent='Kopiert. Füge es z. B. in eine Notiz auf deinem Handy ein.'}catch(err){t.focus();t.select();m.textContent='Text markiert – bitte manuell kopieren.'}return}
+  if(a==='download'){try{const url=URL.createObjectURL(new Blob([JSON.stringify(S,null,1)],{type:'application/json'}));const l=document.createElement('a');l.href=url;l.download='finanzen-backup-'+today()+'.json';document.body.appendChild(l);l.click();l.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);document.getElementById('cmsg').textContent='Falls kein Download startet: „Backup kopieren“ nutzen.'}catch(err){document.getElementById('cmsg').textContent='Download hier nicht möglich – bitte „Backup kopieren“ nutzen.'}return}
+  if(a==='import'){const m=document.getElementById('imsg');let txt=document.getElementById('imp').value.trim();const f=document.getElementById('impf').files[0];if(!txt&&f)txt=await f.text();try{const d=JSON.parse(txt);if(!d||!Array.isArray(d.income)||!Array.isArray(d.fixed)||!Array.isArray(d.variable)||!Array.isArray(d.goals))throw 0;confirmSheet('Aktuelle Daten durch das Backup ersetzen?','Ersetzen',()=>{S=d;save()})}catch(err){m.textContent='Das sieht nicht nach einem gültigen Backup aus.'}return}
+  if(a==='wipe')return confirmSheet('Wirklich alle Daten unwiderruflich löschen?','Alles löschen',()=>{S=empty();cryptoKey=null;pinLen=0;save()});
+});
+
+document.getElementById('prev').onclick=()=>{ym=shiftM(ym,-1);render()};
+document.getElementById('next').onclick=()=>{ym=shiftM(ym,1);render()};
+document.getElementById('fab').onclick=()=>openForm('variable');
+
+const lockEl=document.getElementById('lock'),dotsEl=document.getElementById('dots'),lerr=document.getElementById('lerr'),pad=document.getElementById('pad');
+let entry='',fails=0,waitUntil=0,busy=false;
+pad.innerHTML=[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-k="${n}">${n}</button>`).join('')+'<span></span><button type="button" data-k="0">0</button><button type="button" class="nb" data-k="del" aria-label="Löschen">Löschen</button>';
+const drawDots=()=>{dotsEl.innerHTML=Array.from({length:pinLen||4},(_,i)=>`<i class="${i<entry.length?'on':''}"></i>`).join('')};
+function showLock(on){lockEl.hidden=!on;document.body.classList.toggle('locked',on);entry='';lerr.textContent='';drawDots();if(!on)render()}
+function lockNow(){if(!cryptoKey)return;closeSheet();save();saveChain.then(()=>{locked=true;cryptoKey=null;S=empty();showLock(true)})}
+async function tryUnlock(){
+  busy=true;lerr.textContent='Prüfe …';
+  try{const e=JSON.parse(localStorage.getItem(ENC));const salt=unb64(e.salt),key=await deriveKey(entry,salt);
+    const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(e.iv)},key,unb64(e.ct));
+    S=Object.assign(empty(),JSON.parse(new TextDecoder().decode(pt)));cryptoKey=key;encSalt=salt;pinLen=e.n||entry.length;locked=false;fails=0;showLock(false)}
+  catch(err){fails++;entry='';drawDots();
+    if(fails>=5){waitUntil=Date.now()+30000;lerr.textContent='Zu viele Versuche – bitte 30 Sekunden warten.';pad.querySelectorAll('button').forEach(b=>b.disabled=true);setTimeout(()=>{pad.querySelectorAll('button').forEach(b=>b.disabled=false);lerr.textContent='';fails=0},30000)}
+    else lerr.textContent='Falsche PIN.'}
+  busy=false;
+}
+pad.addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(!b||busy||Date.now()<waitUntil)return;const k=b.dataset.k;
+  if(k==='del')entry=entry.slice(0,-1);else if(entry.length<(pinLen||6))entry+=k;
+  lerr.textContent='';drawDots();if(entry.length===pinLen)tryUnlock()});
+document.addEventListener('keydown',e=>{if(lockEl.hidden||busy)return;if(/^\d$/.test(e.key)&&entry.length<pinLen){entry+=e.key;drawDots();if(entry.length===pinLen)tryUnlock()}else if(e.key==='Backspace'){entry=entry.slice(0,-1);drawDots()}});
+document.getElementById('lockbtn').onclick=lockNow;
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(cryptoKey&&Date.now()-hiddenAt>60000)lockNow()});
+
+function render(){
+  document.getElementById('lockbtn').hidden=!cryptoKey;
+  document.getElementById('mlabel').textContent=mName(ym);
+  document.querySelectorAll('nav button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===tab));
+  document.getElementById('view').innerHTML=(storageOk||tab==='backup'?'':'<p class="note warn">Browser-Speicher nicht verfügbar – Einträge gehen beim Schließen verloren. Siehe „Mehr“.</p>')+V[tab]();
+}
+if(locked)showLock(true);else render();
+}
+</script>
+</body>
+</html>
